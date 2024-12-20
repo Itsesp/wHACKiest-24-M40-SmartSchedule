@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "165234365218",
+    "firebase_url": "https://college-events-25cc8-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "college-events-25cc8",
+    "storage_bucket": "college-events-25cc8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165234365218:android:dcbebc90f39dd446734b7b",
+        "android_client_info": {
+          "package_name": "com.example.smartschedule"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAusflBdeiqTcNdbmp1A-glk2koj3Gma7I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

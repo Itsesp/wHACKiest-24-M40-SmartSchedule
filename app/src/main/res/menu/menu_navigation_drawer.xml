@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_home"
+            android:icon="@drawable/baseline_home_filled_24"
+            android:title="Home" />
+        <item
+            android:id="@+id/nav_events"
+            android:icon="@drawable/baseline_event_24"
+            android:title="Events" />
+        <item
+            android:id="@+id/nav_clubs"
+            android:icon="@drawable/baseline_other_houses_24"
+            android:title="Clubs" />
+        <item
+            android:id="@+id/nav_time_table"
+            android:icon="@drawable/baseline_view_timeline_24"
+            android:title="Time Table" />
+
+        <item
+            android:id="@+id/nav_logout"
+            android:icon="@drawable/baseline_logout_24"
+            android:title="Log Out" />
+
+    </group>
+
+</menu>
