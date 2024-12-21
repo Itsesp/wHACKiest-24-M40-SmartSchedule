@@ -3,9 +3,11 @@ package com.example.smartschedule;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.StrictMode;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -31,18 +33,28 @@ import com.example.smartschedule.fragment.HomeFragment;
 import com.example.smartschedule.fragment.ProfileFragment;
 import com.example.smartschedule.fragment.TimeTableFragment;
 import com.google.android.material.navigation.NavigationView;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.mikhaellopez.circularimageview.CircularImageView;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+
+import android.app.AlarmManager;
 
 public class HomeActivity extends NavigationDrawer {
     private NavigationView navigationView;
@@ -56,6 +68,7 @@ public class HomeActivity extends NavigationDrawer {
     private boolean doubleBackToExitPressedOnce = false;
     private AppDatabase database;
     private static final String TAG = "MainActivity";
+
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -74,6 +87,7 @@ public class HomeActivity extends NavigationDrawer {
         loadFragment(new HomeFragment());
         database = AppDatabaseProvider.getDatabase(this);
         fetchTimetableFromFirebase();
+
     }
     private void setLayout() {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
@@ -248,11 +262,12 @@ public class HomeActivity extends NavigationDrawer {
                         for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
                             String day = daySnapshot.getKey();
                             for (DataSnapshot subjectSnapshot : daySnapshot.getChildren()) {
+                                Log.d(TAG, "Snapshot: " + subjectSnapshot.toString());
                                 String subjectName = subjectSnapshot.getKey();
                                 String startTime = subjectSnapshot.child("start").getValue(String.class);
                                 String endTime = subjectSnapshot.child("end").getValue(String.class);
 
-                                TimetableEntry timetableEntry = new TimetableEntry(day, subjectName, convertTo24HourFormat(startTime), convertTo24HourFormat(endTime));
+                                TimetableEntry timetableEntry = new TimetableEntry(day, subjectName, startTime, endTime);
                                 insertTimetableEntry(timetableEntry);
                             }
                         }
@@ -268,18 +283,6 @@ public class HomeActivity extends NavigationDrawer {
             }
         }).start();
     }
-    public static String convertTo24HourFormat(String time) {
-        try {
-            SimpleDateFormat sdf12 = new SimpleDateFormat("hh:mm a", Locale.getDefault());
-            SimpleDateFormat sdf24 = new SimpleDateFormat("HH:mm", Locale.getDefault());
-            return sdf24.format(sdf12.parse(time));
-        } catch (ParseException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-
     private void insertTimetableEntry(TimetableEntry entry) {
         new Thread(() -> {
             database.timetableDao().insert(entry);

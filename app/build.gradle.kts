@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.firebase.firestore)
     implementation(libs.androidx.room.common)
+    implementation(libs.androidx.recyclerview)
     testImplementation(libs.junit)
     implementation(libs.play.services.auth)
     implementation(libs.androidx.room.runtime)
@@ -73,4 +74,6 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.gson)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation("com.github.bumptech.glide:glide:4.15.1")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.15.1")
 }
