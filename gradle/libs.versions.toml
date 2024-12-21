@@ -16,13 +16,19 @@ appcompat = "1.6.1"
 material = "1.10.0"
 activity = "1.8.0"
 constraintlayout = "2.1.4"
+playServicesAuth = "21.3.0"
+roomCompiler = "2.6.1"
+roomRuntime = "2.6.1"
 viewpumpVersion = "2.0.3"
 firebaseAuth = "23.1.0"
 firebaseDatabase = "21.0.0"
 firebaseFirestore = "25.1.1"
+roomCommon = "2.6.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCompiler" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 circularimageview = { module = "com.mikhaellopez:circularimageview", version.ref = "circularimageview" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
@@ -48,6 +54,8 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version.ref = "firebaseAuth" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
+androidx-room-common = { group = "androidx.room", name = "room-common", version.ref = "roomCommon" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

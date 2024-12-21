@@ -22,6 +22,9 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.example.smartschedule.database.AppDatabase;
+import com.example.smartschedule.database.AppDatabaseProvider;
+import com.example.smartschedule.database.TimetableEntry;
 import com.example.smartschedule.fragment.ClubsFragment;
 import com.example.smartschedule.fragment.EventFragment;
 import com.example.smartschedule.fragment.HomeFragment;
@@ -29,7 +32,17 @@ import com.example.smartschedule.fragment.ProfileFragment;
 import com.example.smartschedule.fragment.TimeTableFragment;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.mikhaellopez.circularimageview.CircularImageView;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.Locale;
 
 public class HomeActivity extends NavigationDrawer {
     private NavigationView navigationView;
@@ -41,6 +54,8 @@ public class HomeActivity extends NavigationDrawer {
     CircularImageView imgUser;
     RelativeLayout mainView;
     private boolean doubleBackToExitPressedOnce = false;
+    private AppDatabase database;
+    private static final String TAG = "MainActivity";
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -57,7 +72,8 @@ public class HomeActivity extends NavigationDrawer {
         firebaseAuth = FirebaseAuth.getInstance();
         setLayout();
         loadFragment(new HomeFragment());
-
+        database = AppDatabaseProvider.getDatabase(this);
+        fetchTimetableFromFirebase();
     }
     private void setLayout() {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
@@ -218,4 +234,56 @@ public class HomeActivity extends NavigationDrawer {
             e.printStackTrace();
         }
     }
+    private void fetchTimetableFromFirebase() {
+        new Thread(() -> {
+            List<TimetableEntry> existingEntries = database.timetableDao().getAllTimetable();
+            if (existingEntries.isEmpty()) {
+
+                DatabaseReference reference = FirebaseDatabase.getInstance().getReference("J");
+
+                reference.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+
+                        for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
+                            String day = daySnapshot.getKey();
+                            for (DataSnapshot subjectSnapshot : daySnapshot.getChildren()) {
+                                String subjectName = subjectSnapshot.getKey();
+                                String startTime = subjectSnapshot.child("start").getValue(String.class);
+                                String endTime = subjectSnapshot.child("end").getValue(String.class);
+
+                                TimetableEntry timetableEntry = new TimetableEntry(day, subjectName, convertTo24HourFormat(startTime), convertTo24HourFormat(endTime));
+                                insertTimetableEntry(timetableEntry);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+                        Log.e(TAG, "Failed to read timetable data", databaseError.toException());
+                    }
+                });
+            } else {
+                Log.d(TAG, "Timetable already exists in Room Database");
+            }
+        }).start();
+    }
+    public static String convertTo24HourFormat(String time) {
+        try {
+            SimpleDateFormat sdf12 = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+            SimpleDateFormat sdf24 = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            return sdf24.format(sdf12.parse(time));
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
+    private void insertTimetableEntry(TimetableEntry entry) {
+        new Thread(() -> {
+            database.timetableDao().insert(entry);
+        }).start();
+    }
+
 }

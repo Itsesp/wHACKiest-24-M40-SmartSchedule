@@ -1,4 +1,6 @@
 package com.example.smartschedule;
+
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.gson.Gson;
@@ -8,8 +10,11 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class HolidayManager {
 
@@ -32,7 +37,7 @@ public class HolidayManager {
         }
     }
 
-    // Fetch data from Firestore and update local storage
+    // Fetch and update holidays from Firestore
     public void fetchAndUpdateHolidays(Context context) {
         FirebaseFirestore firestore = FirebaseFirestore.getInstance();
         firestore.collection("Holidays")
@@ -42,17 +47,21 @@ public class HolidayManager {
 
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         String holidayName = document.getId();
-                        String date = document.getString("date");
-                        fetchedHolidays.add(new Holiday(holidayName, date));
+                        Timestamp timestamp = document.getTimestamp("date");
+
+                        if (timestamp != null) {
+                            Date date = timestamp.toDate();
+                            String formattedDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date);
+                            fetchedHolidays.add(new Holiday(holidayName, formattedDate));
+                        }
                     }
 
-                    // Update local storage
                     updateLocalHolidays(context, fetchedHolidays);
                 })
                 .addOnFailureListener(e -> e.printStackTrace());
     }
 
-    // Update local holidays by adding new holidays only
+    // Update local holidays
     private void updateLocalHolidays(Context context, List<Holiday> fetchedHolidays) {
         List<Holiday> localHolidays = loadHolidaysLocally(context);
 
