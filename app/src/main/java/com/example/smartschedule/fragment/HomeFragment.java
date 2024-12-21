@@ -14,6 +14,8 @@ import android.view.ViewGroup;
 import com.ak.ColoredDate;
 import com.ak.EventObjects;
 import com.ak.KalendarView;
+import com.example.smartschedule.ClubManager;
+import com.example.smartschedule.ExamManager;
 import com.example.smartschedule.HolidayManager;
 import com.example.smartschedule.R;
 import com.google.firebase.Timestamp;
@@ -35,28 +37,35 @@ public class HomeFragment extends Fragment {
 
     private KalendarView mKalendarView;
     private HolidayManager holidayManager;
+    private ExamManager examManager;
     private List<Map<String, Object>> eventsList;
     private FirebaseFirestore db;
-    private static final String TAG = "HomeFragment";
+    private ClubManager clubManager;
+    List<ColoredDate> examColors = new ArrayList<>();
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         db = FirebaseFirestore.getInstance();
         eventsList = new ArrayList<>();
-
-        fetchAllEvents();
         mKalendarView = view.findViewById(R.id.kalendar);
         holidayManager = new HolidayManager();
+        clubManager = new ClubManager();
+        examManager=new ExamManager();
+        examManager.fetchAndUpdateExams(requireContext());
         holidayManager.fetchAndUpdateHolidays(requireContext());
-        setHolidayColors();
+        clubManager.fetchAndUpdateClubEvents(requireContext());
+        setEventColors();
         mKalendarView.setInitialSelectedDate(new Date());
         return view;
     }
 
-    private void setHolidayColors() {
-
+    private void setEventColors() {
         List<HolidayManager.Holiday> holidays = holidayManager.loadHolidaysLocally(requireContext());
+        List<ExamManager.Exam> exams = examManager.loadExamsLocally(requireContext());
+        List<ClubManager.ClubEvent> clubEvents = clubManager.loadClubEventsLocally(requireContext()); // Load club events
+
         List<ColoredDate> datesColors = new ArrayList<>();
         List<EventObjects> events = new ArrayList<>();
 
@@ -66,23 +75,43 @@ public class HomeFragment extends Fragment {
             try {
                 Date holidayDate = sdf.parse(holiday.getDate());
                 if (holidayDate != null) {
-                    events.add(new EventObjects(holiday.getName(),holidayDate));
-                    datesColors.add(new ColoredDate(holidayDate, getResources().getColor(R.color.holiday_red)));
+                    events.add(new EventObjects(holiday.getName(), holidayDate));
+                    datesColors.add(new ColoredDate(holidayDate, getResources().getColor(R.color.holiday_red))); // Color for holidays
                 }
             } catch (ParseException e) {
                 e.printStackTrace();
             }
         }
+
+        for (ExamManager.Exam exam : exams) {
+            try {
+                Date examDate = sdf.parse(exam.getDate());
+                if (examDate != null) {
+                    events.add(new EventObjects(exam.getExamName(), examDate));
+                    datesColors.add(new ColoredDate(examDate, getResources().getColor(R.color.purple_200))); // Color for exams
+                }
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+
+        for (ClubManager.ClubEvent clubEvent : clubEvents) {
+            try {
+                Date clubEventDate = sdf.parse(clubEvent.getDate());
+                if (clubEventDate != null) {
+                    events.add(new EventObjects(clubEvent.getEventName(), clubEventDate));
+                    datesColors.add(new ColoredDate(clubEventDate, getResources().getColor(R.color.purple_700))); // Color for club events
+                }
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+
         mKalendarView.setEvents(events);
         mKalendarView.setColoredDates(datesColors);
     }
-    private void fetchAllEvents() {
-        Log.d(TAG, "Fetching all events...");
-        fetchHolidays();
-    }
 
     private void fetchHolidays() {
-        Log.d(TAG, "Fetching holidays...");
         db.collection("Holidays")
                 .get()
                 .addOnCompleteListener(task -> {
@@ -94,106 +123,94 @@ public class HomeFragment extends Fragment {
                             event.put("date", doc.getTimestamp("date"));
                             eventsList.add(event);
                         }
-                        fetchExams();
                     } else {
-                        Log.e(TAG, "Failed to fetch Holidays: ", task.getException());
+                        Log.e("FETCH_ERROR", "Failed to fetch Holidays", task.getException());
                     }
+                    displayEvents();
                 });
     }
 
     private void fetchExams() {
-        Log.d(TAG, "Fetching exams...");
         db.collection("Exams")
                 .get()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         for (QueryDocumentSnapshot examDoc : task.getResult()) {
                             String examName = examDoc.getId();
+                            Map<String, Object> examData = examDoc.getData();
+                            for (Map.Entry<String, Object> entry : examData.entrySet()) {
+                                if (entry.getValue() instanceof Timestamp) {
+                                    Map<String, Object> event = new HashMap<>();
+                                    event.put("type", "Exam");
+                                    event.put("name", examName);
+                                    event.put("date", entry.getValue());
+                                    eventsList.add(event);
+                                    Object value = entry.getValue();
 
-                            db.collection("Exams")
-                                    .document(examName)
-                                    .collection("dates")
-                                    .get()
-                                    .addOnCompleteListener(datesTask -> {
-                                        if (datesTask.isSuccessful()) {
-                                            for (QueryDocumentSnapshot dateDoc : datesTask.getResult()) {
-                                                Map<String, Object> event = new HashMap<>();
-                                                event.put("type", "Exam");
-                                                event.put("exam", examName);
-                                                event.put("id", dateDoc.getId());
-                                                event.put("date", dateDoc.getTimestamp("date"));
-                                                eventsList.add(event);
-                                            }
-                                            Log.d(TAG, "Fetched exam dates for: " + examName);
-                                        } else {
-                                            Log.e(TAG, "Failed to fetch exam dates: ", datesTask.getException());
-                                        }
-                                    });
+                                    if (value instanceof Timestamp) {
+                                        Timestamp timestamp = (Timestamp) value;
+                                        Date date = timestamp.toDate();
+                                        examColors.add(new ColoredDate(date, getResources().getColor(R.color.purple_200)));
+
+                                    }
+
+                                }
+                            }
                         }
-                        fetchClubEvents();
                     } else {
-                        Log.e(TAG, "Failed to fetch Exams: ", task.getException());
+                        Log.e("FETCH_ERROR", "Failed to fetch Exams", task.getException());
                     }
+                    displayEvents();
                 });
     }
 
     private void fetchClubEvents() {
-        Log.d(TAG, "Fetching club events...");
         db.collection("Clubs")
                 .get()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         for (QueryDocumentSnapshot clubDoc : task.getResult()) {
                             String clubName = clubDoc.getId();
-
                             db.collection("Clubs")
                                     .document(clubName)
                                     .collection("events")
                                     .get()
-                                    .addOnCompleteListener(eventsTask -> {
-                                        if (eventsTask.isSuccessful()) {
-                                            for (QueryDocumentSnapshot eventDoc : eventsTask.getResult()) {
+                                    .addOnCompleteListener(eventTask -> {
+                                        if (eventTask.isSuccessful()) {
+                                            for (QueryDocumentSnapshot eventDoc : eventTask.getResult()) {
                                                 Map<String, Object> event = new HashMap<>();
-                                                event.put("type", "Club");
+                                                event.put("type", "Club Event");
                                                 event.put("club", clubName);
-                                                event.put("name", eventDoc.getId());
+                                                event.put("name", eventDoc.getString("event"));
                                                 event.put("date", eventDoc.getTimestamp("date"));
                                                 eventsList.add(event);
                                             }
-                                            Log.d(TAG, "Fetched club events for: " + clubName);
                                         } else {
-                                            Log.e(TAG, "Failed to fetch club events: ", eventsTask.getException());
+                                            Log.e("FETCH_ERROR", "Failed to fetch Club Events for " + clubName, eventTask.getException());
+                                        }
+                                        if (clubDoc == task.getResult().getDocuments().get(task.getResult().size() - 1)) {
+                                            displayEvents();
                                         }
                                     });
                         }
-                        displayEvents();
                     } else {
-                        Log.e(TAG, "Failed to fetch Clubs: ", task.getException());
+                        Log.e("FETCH_ERROR", "Failed to fetch Clubs", task.getException());
+                        displayEvents();
                     }
                 });
+        displayEvents();
     }
 
+
+
     private void displayEvents() {
-        Log.d(TAG, "Displaying events...");
-        // Sort events by date
-        Collections.sort(eventsList, new Comparator<Map<String, Object>>() {
-            @Override
-            public int compare(Map<String, Object> o1, Map<String, Object> o2) {
-                Timestamp date1 = (Timestamp) o1.get("date");
-                Timestamp date2 = (Timestamp) o2.get("date");
-                if (date1 == null || date2 == null) {
-                    Log.e(TAG, "Null timestamp found during sorting: " + o1 + " or " + o2);
-                    return 0;
-                }
-                return date1.toDate().compareTo(date2.toDate());
-            }
-        });
 
-        // Log sorted events
         for (Map<String, Object> event : eventsList) {
-            Log.d(TAG, "Event: " + event);
+            StringBuilder eventDetails = new StringBuilder("Event Details:");
+            for (Map.Entry<String, Object> entry : event.entrySet()) {
+                eventDetails.append(" ").append(entry.getKey()).append(": ").append(entry.getValue()).append(",");
+            }
+            Log.d("EVENT_LOG", eventDetails.toString());
         }
-
-        // TODO: Update the UI with sorted events
     }
 }
