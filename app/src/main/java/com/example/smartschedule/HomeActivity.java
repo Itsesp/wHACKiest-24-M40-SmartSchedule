@@ -2,6 +2,7 @@ package com.example.smartschedule;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -279,9 +280,68 @@ public class HomeActivity extends NavigationDrawer {
                     }
                 });
             } else {
+                SharedPreferences preferences = getSharedPreferences("UserPreferences", Context.MODE_PRIVATE);
+
+                long lastFetchTimestamp = preferences.getLong("lastFetchTimeTable", 0);
+
+                FirebaseFirestore db = FirebaseFirestore.getInstance();
+                db.collection("timestamp")
+                        .document("timetable")
+                        .get()
+                        .addOnSuccessListener(documentSnapshot -> {
+                            if (documentSnapshot.exists()) {
+
+                                Timestamp firestoreTimestamp = documentSnapshot.getTimestamp("timestamp");
+                                if (firestoreTimestamp != null) {
+                                    long timestampInMillis = firestoreTimestamp.getSeconds() * 1000;  // Convert to milliseconds
+                                    if (timestampInMillis > lastFetchTimestamp) {
+                                        DatabaseReference reference = FirebaseDatabase.getInstance().getReference("J");
+
+                                        reference.addListenerForSingleValueEvent(new ValueEventListener() {
+                                            @Override
+                                            public void onDataChange(DataSnapshot dataSnapshot) {
+
+                                                for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
+                                                    String day = daySnapshot.getKey();
+                                                    for (DataSnapshot subjectSnapshot : daySnapshot.getChildren()) {
+                                                        Log.d(TAG, "Snapshot: " + subjectSnapshot.toString());
+                                                        String subjectName = subjectSnapshot.getKey();
+                                                        String startTime = subjectSnapshot.child("start").getValue(String.class);
+                                                        String endTime = subjectSnapshot.child("end").getValue(String.class);
+
+                                                        TimetableEntry timetableEntry = new TimetableEntry(day, subjectName, startTime, endTime);
+                                                        insertTimetableEntry(timetableEntry);
+                                                    }
+                                                }
+                                            }
+
+                                            @Override
+                                            public void onCancelled(DatabaseError databaseError) {
+                                                Log.e(TAG, "Failed to read timetable data", databaseError.toException());
+                                            }
+                                        });
+                                        updateLastFetchTimestamp(timestampInMillis);
+                                    } else {
+
+                                        Log.d(TAG, "Data is up to date.");
+                                    }
+                                }
+
+                            }
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e("HomeFragment", "Error checking timestamp", e);
+
+                        });
                 Log.d(TAG, "Timetable already exists in Room Database");
             }
         }).start();
+    }
+    private void updateLastFetchTimestamp(long timestamp) {
+        SharedPreferences preferences = getSharedPreferences("UserPreferences", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putLong("lastFetchTimeTable", timestamp); // Store the latest timestamp
+        editor.apply();
     }
     private void insertTimetableEntry(TimetableEntry entry) {
         new Thread(() -> {

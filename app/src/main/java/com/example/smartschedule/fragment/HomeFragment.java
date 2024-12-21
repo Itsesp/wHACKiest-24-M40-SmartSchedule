@@ -1,10 +1,13 @@
 package com.example.smartschedule.fragment;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -12,6 +15,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import com.ak.ColoredDate;
 import com.ak.EventObjects;
@@ -20,14 +24,18 @@ import com.example.smartschedule.ClubManager;
 import com.example.smartschedule.ExamManager;
 import com.example.smartschedule.HolidayManager;
 import com.example.smartschedule.R;
+import com.example.smartschedule.adapter.AttendanceAdapter;
 import com.example.smartschedule.adapter.EventListAdapter;
 import com.example.smartschedule.adapter.UpcomingEventListAdapter;
+import com.example.smartschedule.data.AttendanceItem;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -41,8 +49,8 @@ public class HomeFragment extends Fragment {
     private List<Map<String, Object>> eventsList;
     private FirebaseFirestore db;
     private ClubManager clubManager;
-    private RecyclerView recyclerView;
-
+    private RecyclerView recyclerView , attendanceRecycler;
+    private AttendanceAdapter adapter;
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -53,12 +61,17 @@ public class HomeFragment extends Fragment {
         holidayManager = new HolidayManager();
         clubManager = new ClubManager();
         examManager=new ExamManager();
-        examManager.fetchAndUpdateExams(requireContext());
         recyclerView=view.findViewById(R.id.upcomingView);
+        attendanceRecycler=view.findViewById(R.id.attendanceView);
+        int numberOfColumns = 3;
+        GridLayoutManager gridLayoutManager = new GridLayoutManager(getContext(), numberOfColumns);
+        attendanceRecycler.setLayoutManager(gridLayoutManager);
         LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false);
         recyclerView.setLayoutManager(layoutManager);
-        holidayManager.fetchAndUpdateHolidays(requireContext());
-        clubManager.fetchAndUpdateClubEvents(requireContext());
+        //holidayManager.fetchAndUpdateHolidays(requireContext());
+        //examManager.fetchAndUpdateExams(requireContext());
+        //clubManager.fetchAndUpdateClubEvents(requireContext());
+        checkAndFetchData();
         setEventColors();
         loadAndSortEvents();
         mKalendarView.setInitialSelectedDate(new Date());
@@ -129,6 +142,14 @@ public class HomeFragment extends Fragment {
             }
 
         });
+        SharedPreferences preferences = requireActivity().getSharedPreferences("UserPreferences", Context.MODE_PRIVATE);
+        String usn = preferences.getString("usn", null);
+
+        if (usn != null) {
+            fetchAttendanceData(usn);
+        } else {
+            Toast.makeText(getContext(), "USN not found!", Toast.LENGTH_SHORT).show();
+        }
         return view;
     }
 
@@ -264,5 +285,68 @@ public class HomeFragment extends Fragment {
         eventDate.setTime(date);
         return eventDate.get(Calendar.MONTH) == currentMonth && eventDate.get(Calendar.YEAR) == currentYear;
     }
+    private void fetchAttendanceData(String usn) {
+        db.collection("Attendance").document(usn).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        List<AttendanceItem> attendanceList = new ArrayList<>();
+                        Map<String, Object> data = documentSnapshot.getData();
+
+                        for (Map.Entry<String, Object> entry : data.entrySet()) {
+                            String subject = entry.getKey();
+                            int percentage = Integer.parseInt(entry.getValue().toString());
+                            attendanceList.add(new AttendanceItem(subject, percentage));
+                        }
+                        attendanceList.sort(Comparator.comparingInt(AttendanceItem::getPercentage));
+
+                        adapter = new AttendanceAdapter(attendanceList);
+                        attendanceRecycler.setAdapter(adapter);
+                    } else {
+                        Toast.makeText(getContext(), "No attendance data found!", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(getContext(), "Error fetching data: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+    private void checkAndFetchData() {
+        SharedPreferences preferences = requireActivity().getSharedPreferences("UserPreferences", Context.MODE_PRIVATE);
+
+        long lastFetchTimestamp = preferences.getLong("lastFetchTimestamp", 0);
+
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("timestamp")
+                .document("timestamp")
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+
+                        Timestamp firestoreTimestamp = documentSnapshot.getTimestamp("timestamp");
+                        if (firestoreTimestamp != null) {
+                            long timestampInMillis = firestoreTimestamp.getSeconds() * 1000;  // Convert to milliseconds
+                            if (timestampInMillis > lastFetchTimestamp) {
+                                holidayManager.fetchAndUpdateHolidays(requireContext());
+                                examManager.fetchAndUpdateExams(requireContext());
+                                clubManager.fetchAndUpdateClubEvents(requireContext());
+                                updateLastFetchTimestamp(timestampInMillis);
+                            } else {
+
+                                Log.d("HomeFragment", "Data is up to date.");
+                            }
+                        }
+
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("HomeFragment", "Error checking timestamp", e);
+
+                });
+    }
+    private void updateLastFetchTimestamp(long timestamp) {
+        SharedPreferences preferences = requireActivity().getSharedPreferences("UserPreferences", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putLong("lastFetchTimestamp", timestamp); // Store the latest timestamp
+        editor.apply();
+    }
+
 
 }
