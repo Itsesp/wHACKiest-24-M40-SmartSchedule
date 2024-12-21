@@ -18,14 +18,15 @@ import java.util.Locale;
 
 public class HolidayManager {
 
-    // Data model class
     public static class Holiday {
         private String name;
         private String date;
+        private Timestamp time;
 
-        public Holiday(String name, String date) {
+        public Holiday(String name, String date , Timestamp time) {
             this.name = name;
             this.date = date;
+            this.time=time;
         }
 
         public String getName() {
@@ -35,9 +36,9 @@ public class HolidayManager {
         public String getDate() {
             return date;
         }
+        public Timestamp getTime() {return time;}
     }
 
-    // Fetch and update holidays from Firestore
     public void fetchAndUpdateHolidays(Context context) {
         FirebaseFirestore firestore = FirebaseFirestore.getInstance();
         firestore.collection("Holidays")
@@ -52,7 +53,7 @@ public class HolidayManager {
                         if (timestamp != null) {
                             Date date = timestamp.toDate();
                             String formattedDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date);
-                            fetchedHolidays.add(new Holiday(holidayName, formattedDate));
+                            fetchedHolidays.add(new Holiday(holidayName, formattedDate,timestamp));
                         }
                     }
 
@@ -61,11 +62,9 @@ public class HolidayManager {
                 .addOnFailureListener(e -> e.printStackTrace());
     }
 
-    // Update local holidays
     private void updateLocalHolidays(Context context, List<Holiday> fetchedHolidays) {
         List<Holiday> localHolidays = loadHolidaysLocally(context);
 
-        // Add only new holidays
         for (Holiday fetchedHoliday : fetchedHolidays) {
             boolean exists = false;
 
@@ -81,29 +80,23 @@ public class HolidayManager {
             }
         }
 
-        // Save updated list locally
         saveHolidaysLocally(context, localHolidays);
     }
 
-    // Save holidays locally
     private void saveHolidaysLocally(Context context, List<Holiday> holidayList) {
         SharedPreferences sharedPreferences = context.getSharedPreferences("HolidayData", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         Gson gson = new Gson();
 
-        // Convert List<Holiday> to JSON
         String json = gson.toJson(holidayList);
         editor.putString("holidays", json);
         editor.apply();
     }
-
-    // Load holidays from local storage
     public List<Holiday> loadHolidaysLocally(Context context) {
         SharedPreferences sharedPreferences = context.getSharedPreferences("HolidayData", Context.MODE_PRIVATE);
         String json = sharedPreferences.getString("holidays", null);
         Gson gson = new Gson();
 
-        // Convert JSON back to List<Holiday>
         Type type = new TypeToken<List<Holiday>>() {}.getType();
         return json != null ? gson.fromJson(json, type) : new ArrayList<>();
     }

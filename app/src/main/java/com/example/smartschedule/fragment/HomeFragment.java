@@ -5,6 +5,8 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -18,17 +20,15 @@ import com.example.smartschedule.ClubManager;
 import com.example.smartschedule.ExamManager;
 import com.example.smartschedule.HolidayManager;
 import com.example.smartschedule.R;
-import com.google.firebase.Timestamp;
+import com.example.smartschedule.adapter.EventListAdapter;
+import com.example.smartschedule.adapter.UpcomingEventListAdapter;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,7 +41,7 @@ public class HomeFragment extends Fragment {
     private List<Map<String, Object>> eventsList;
     private FirebaseFirestore db;
     private ClubManager clubManager;
-    List<ColoredDate> examColors = new ArrayList<>();
+    private RecyclerView recyclerView;
 
     @Nullable
     @Override
@@ -54,10 +54,81 @@ public class HomeFragment extends Fragment {
         clubManager = new ClubManager();
         examManager=new ExamManager();
         examManager.fetchAndUpdateExams(requireContext());
+        recyclerView=view.findViewById(R.id.upcomingView);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false);
+        recyclerView.setLayoutManager(layoutManager);
         holidayManager.fetchAndUpdateHolidays(requireContext());
         clubManager.fetchAndUpdateClubEvents(requireContext());
         setEventColors();
+        loadAndSortEvents();
         mKalendarView.setInitialSelectedDate(new Date());
+        mKalendarView.setDateSelector(new KalendarView.DateSelector() {
+            @Override
+            public void onDateClicked(Date selectedDate) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                List<String> associatedEvents = new ArrayList<>();
+
+                // Check for holidays
+                for (HolidayManager.Holiday holiday : holidayManager.loadHolidaysLocally(requireContext())) {
+                    try {
+                        Date holidayDate = sdf.parse(holiday.getDate());
+                        if (holidayDate != null && isSameDay(selectedDate, holidayDate)) {
+                            associatedEvents.add(holiday.getName());
+                        }
+                    } catch (ParseException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                // Check for exams
+                for (ExamManager.Exam exam : examManager.loadExamsLocally(requireContext())) {
+                    try {
+                        Date examDate = sdf.parse(exam.getDate());
+                        if (examDate != null && isSameDay(selectedDate, examDate)) {
+                            associatedEvents.add(exam.getExamName());
+                        }
+                    } catch (ParseException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                // Check for club events
+                for (ClubManager.ClubEvent clubEvent : clubManager.loadClubEventsLocally(requireContext())) {
+                    try {
+                        Date clubEventDate = sdf.parse(clubEvent.getDate());
+                        if (clubEventDate != null && isSameDay(selectedDate, clubEventDate)) {
+                            associatedEvents.add(clubEvent.getEventName());
+                        }
+                    } catch (ParseException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                if (associatedEvents.size() > 0) {
+                    showEventListBottomSheet(associatedEvents);
+                    Log.d("Selected Date Events", "Events on " + selectedDate.toString() + ": " + String.join(", ", associatedEvents));
+                } else {
+                    Log.d("Selected Date Events", "No events found on " + selectedDate.toString());
+                }
+            }
+
+            private boolean isSameDay(Date date1, Date date2) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                return sdf.format(date1).equals(sdf.format(date2));
+            }
+            private void showEventListBottomSheet(List<String> associatedNames) {
+                View bottomSheetView = LayoutInflater.from(requireContext()).inflate(R.layout.bottom_sheet_event_list, null);
+
+                RecyclerView recyclerView = bottomSheetView.findViewById(R.id.rv_event_list);
+                recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+                EventListAdapter adapter = new EventListAdapter(associatedNames);
+                recyclerView.setAdapter(adapter);
+                BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(requireContext());
+                bottomSheetDialog.setContentView(bottomSheetView);
+                bottomSheetDialog.show();
+            }
+
+        });
         return view;
     }
 
@@ -110,107 +181,88 @@ public class HomeFragment extends Fragment {
         mKalendarView.setEvents(events);
         mKalendarView.setColoredDates(datesColors);
     }
+    private void loadAndSortEvents() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        List<String> todayEvents = new ArrayList<>();
+        List<String> thisMonthEvents = new ArrayList<>();
 
-    private void fetchHolidays() {
-        db.collection("Holidays")
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        for (QueryDocumentSnapshot doc : task.getResult()) {
-                            Map<String, Object> event = new HashMap<>();
-                            event.put("type", "Holiday");
-                            event.put("name", doc.getId());
-                            event.put("date", doc.getTimestamp("date"));
-                            eventsList.add(event);
-                        }
-                    } else {
-                        Log.e("FETCH_ERROR", "Failed to fetch Holidays", task.getException());
+        List<String> sortedEvents = new ArrayList<>();
+
+        List<HolidayManager.Holiday> holidays = holidayManager.loadHolidaysLocally(requireContext());
+        List<ExamManager.Exam> exams = examManager.loadExamsLocally(requireContext());
+        List<ClubManager.ClubEvent> clubEvents = clubManager.loadClubEventsLocally(requireContext());
+
+        for (HolidayManager.Holiday holiday : holidays) {
+            try {
+                Date holidayDate = sdf.parse(holiday.getDate());
+                if (holidayDate != null) {
+                    String eventString = holiday.getName() + " - " + sdf.format(holidayDate);
+                    if (isSameDay(holidayDate, new Date())) {
+                        todayEvents.add(eventString);
+                    } else if (isInCurrentMonth(holidayDate)) {
+                        thisMonthEvents.add(eventString);
                     }
-                    displayEvents();
-                });
-    }
-
-    private void fetchExams() {
-        db.collection("Exams")
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        for (QueryDocumentSnapshot examDoc : task.getResult()) {
-                            String examName = examDoc.getId();
-                            Map<String, Object> examData = examDoc.getData();
-                            for (Map.Entry<String, Object> entry : examData.entrySet()) {
-                                if (entry.getValue() instanceof Timestamp) {
-                                    Map<String, Object> event = new HashMap<>();
-                                    event.put("type", "Exam");
-                                    event.put("name", examName);
-                                    event.put("date", entry.getValue());
-                                    eventsList.add(event);
-                                    Object value = entry.getValue();
-
-                                    if (value instanceof Timestamp) {
-                                        Timestamp timestamp = (Timestamp) value;
-                                        Date date = timestamp.toDate();
-                                        examColors.add(new ColoredDate(date, getResources().getColor(R.color.purple_200)));
-
-                                    }
-
-                                }
-                            }
-                        }
-                    } else {
-                        Log.e("FETCH_ERROR", "Failed to fetch Exams", task.getException());
-                    }
-                    displayEvents();
-                });
-    }
-
-    private void fetchClubEvents() {
-        db.collection("Clubs")
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        for (QueryDocumentSnapshot clubDoc : task.getResult()) {
-                            String clubName = clubDoc.getId();
-                            db.collection("Clubs")
-                                    .document(clubName)
-                                    .collection("events")
-                                    .get()
-                                    .addOnCompleteListener(eventTask -> {
-                                        if (eventTask.isSuccessful()) {
-                                            for (QueryDocumentSnapshot eventDoc : eventTask.getResult()) {
-                                                Map<String, Object> event = new HashMap<>();
-                                                event.put("type", "Club Event");
-                                                event.put("club", clubName);
-                                                event.put("name", eventDoc.getString("event"));
-                                                event.put("date", eventDoc.getTimestamp("date"));
-                                                eventsList.add(event);
-                                            }
-                                        } else {
-                                            Log.e("FETCH_ERROR", "Failed to fetch Club Events for " + clubName, eventTask.getException());
-                                        }
-                                        if (clubDoc == task.getResult().getDocuments().get(task.getResult().size() - 1)) {
-                                            displayEvents();
-                                        }
-                                    });
-                        }
-                    } else {
-                        Log.e("FETCH_ERROR", "Failed to fetch Clubs", task.getException());
-                        displayEvents();
-                    }
-                });
-        displayEvents();
-    }
-
-
-
-    private void displayEvents() {
-
-        for (Map<String, Object> event : eventsList) {
-            StringBuilder eventDetails = new StringBuilder("Event Details:");
-            for (Map.Entry<String, Object> entry : event.entrySet()) {
-                eventDetails.append(" ").append(entry.getKey()).append(": ").append(entry.getValue()).append(",");
+                }
+            } catch (ParseException e) {
+                e.printStackTrace();
             }
-            Log.d("EVENT_LOG", eventDetails.toString());
         }
+
+        for (ExamManager.Exam exam : exams) {
+            try {
+                Date examDate = sdf.parse(exam.getDate());
+                if (examDate != null) {
+                    String eventString = exam.getExamName() + " - " + sdf.format(examDate);
+                    if (isSameDay(examDate, new Date())) {
+                        todayEvents.add(eventString);
+                    } else if (isInCurrentMonth(examDate)) {
+                        thisMonthEvents.add(eventString);
+                    }
+                }
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+
+        for (ClubManager.ClubEvent clubEvent : clubEvents) {
+            try {
+                Date clubEventDate = sdf.parse(clubEvent.getDate());
+                if (clubEventDate != null) {
+                    String eventString = clubEvent.getEventName() + " - " + sdf.format(clubEventDate);
+                    if (isSameDay(clubEventDate, new Date())) {
+                        todayEvents.add(eventString);
+                    } else if (isInCurrentMonth(clubEventDate)) {
+                        thisMonthEvents.add(eventString);
+                    }
+                }
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+        Log.d("UpcomingEvents", "Today Events: " + todayEvents.toString());
+        Log.d("UpcomingEvents", "This Month Events: " + thisMonthEvents.toString());
+
+        sortedEvents.addAll(todayEvents);
+        sortedEvents.addAll(thisMonthEvents);
+        Log.d("UpcomingEvents", "Sorted Events: " + sortedEvents.toString());
+        UpcomingEventListAdapter adapter = new UpcomingEventListAdapter(sortedEvents);
+        recyclerView.setAdapter(adapter);
+
     }
+
+
+    private boolean isSameDay(Date date1, Date date2) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        return sdf.format(date1).equals(sdf.format(date2));
+    }
+
+    private boolean isInCurrentMonth(Date date) {
+        Calendar calendar = Calendar.getInstance();
+        int currentMonth = calendar.get(Calendar.MONTH);
+        int currentYear = calendar.get(Calendar.YEAR);
+        Calendar eventDate = Calendar.getInstance();
+        eventDate.setTime(date);
+        return eventDate.get(Calendar.MONTH) == currentMonth && eventDate.get(Calendar.YEAR) == currentYear;
+    }
+
 }

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:cardCornerRadius="7dp"
+    android:padding="5dp"
+    android:layout_marginStart="10dp"
+    android:layout_marginEnd="10dp"
+    android:layout_marginTop="10dp"
+    android:layout_marginBottom="10dp"
+    android:elevation="1dp">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        >
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:layout_marginEnd="5dp"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <!-- Large Date -->
+            <TextView
+                android:id="@+id/eventDateTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="12"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorPrimary"/>
+
+            <!-- Short Month Name -->
+            <TextView
+                android:id="@+id/eventMonthTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dec"
+                android:textSize="14sp"
+                android:textColor="#757575"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/eventNameTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Christmas"
+            android:textSize="19sp"
+            android:layout_marginStart="20dp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_gravity="center"/>
+    </LinearLayout>
+
+
+</androidx.cardview.widget.CardView>
