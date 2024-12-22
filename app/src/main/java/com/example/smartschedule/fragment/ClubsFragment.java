@@ -12,18 +12,22 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.smartschedule.R;
 import com.example.smartschedule.adapter.ClubAdapter;
 import com.example.smartschedule.data.Club;
 import com.example.smartschedule.data.Event;
+import com.example.smartschedule.manager.NotificationHelper;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.Timestamp;
@@ -83,6 +87,7 @@ public class ClubsFragment extends Fragment implements ClubAdapter.OnUpcomingEve
                                                 Timestamp eventDate = eventDoc.getTimestamp("date");
                                                 String eventDescription = eventDoc.getString("description");
                                                 Event event = new Event(eventName, eventDate,eventDescription);
+                                                Log.d("Clubs",eventDate.toDate().toString());
                                                 events.add(event);
                                             }
 
@@ -105,7 +110,21 @@ public class ClubsFragment extends Fragment implements ClubAdapter.OnUpcomingEve
         TextView eventNameTextView = view.findViewById(R.id.eventNameTextView);
         TextView eventDateTextView = view.findViewById(R.id.eventDateTextView);
         TextView eventDescription = view.findViewById(R.id.eventDescription);
+        ImageView iconNotify = view.findViewById(R.id.notifyIcon);
         eventDescription.setText(event.getEventDescription());
+        iconNotify.setOnClickListener(v -> {
+            if (event.getEventDate() != null) {
+                long eventTime = event.getEventDate().toDate().getTime();
+                String title = event.getEventName(); // Use the event name as the title
+                String message = "Reminder: " + event.getEventName() + " is coming up!"; // Custom message
+
+                // Schedule notification
+                NotificationHelper.scheduleNotification(getContext(), title, message, eventTime);
+            } else {
+                // Handle case where the event date is missing
+                Toast.makeText(getContext(), "Event date is missing", Toast.LENGTH_SHORT).show();
+            }
+        });
 
         eventNameTextView.setText(event.getEventName());
         eventDateTextView.setText("Date: " + event.getFormattedEventDate());

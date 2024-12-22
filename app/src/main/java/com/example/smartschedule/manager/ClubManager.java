@@ -24,11 +24,13 @@ public class ClubManager {
         private String clubName;
         private String eventName;
         private String date;
+        private Timestamp timestamp;
 
-        public ClubEvent(String clubName, String eventName, String date) {
+        public ClubEvent(String clubName, String eventName, String date , Timestamp timestamp) {
             this.clubName = clubName;
             this.eventName = eventName;
             this.date = date;
+            this.timestamp = timestamp;
         }
 
         public String getClubName() {
@@ -42,6 +44,7 @@ public class ClubManager {
         public String getDate() {
             return date;
         }
+        public Timestamp getTimestamp() {return timestamp;}
     }
 
     // Fetch and update club events from Firestore
@@ -68,7 +71,7 @@ public class ClubManager {
                                             if (timestamp != null) {
                                                 Date date = timestamp.toDate();
                                                 String formattedDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date);
-                                                fetchedClubEvents.add(new ClubEvent(clubName, eventName, formattedDate));
+                                                fetchedClubEvents.add(new ClubEvent(clubName, eventName, formattedDate,timestamp));
                                             }
                                         }
                                     }

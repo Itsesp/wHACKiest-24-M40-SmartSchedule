@@ -62,7 +62,7 @@ public class ClubAdapter extends RecyclerView.Adapter<ClubAdapter.ClubViewHolder
         TextView clubNameTextView;
         TextView clubDescriptionTextView;
         CardView upcomingEventButton;
-        ImageView clubImageView;
+        ImageView clubImageView , iconNotify;
 
         public ClubViewHolder(View itemView) {
             super(itemView);

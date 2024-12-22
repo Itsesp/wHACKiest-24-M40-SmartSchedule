@@ -352,7 +352,7 @@ public class HomeFragment extends Fragment {
     }
     private void checkAndFetchData() {
         SharedPreferences preferences = requireActivity().getSharedPreferences("UserPreferences", Context.MODE_PRIVATE);
-
+        attendanceList.clear();
         long lastFetchTimestamp = preferences.getLong("lastFetchTimestamp", 0);
 
         FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -397,7 +397,6 @@ public class HomeFragment extends Fragment {
             try {
                 LocalDate today = LocalDate.now();
 
-                // Format the date
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
                 String formattedDate = today.format(formatter);
                 String text = "You are an AI Assistant in a timetable app. Your work is to give suggestions to attend classes based on attendance, other events like clubs, exams, and holidays. Provide suggestions only for the current day's timetable, not for the entire month. Your response should be direct, formal, and actionable.\n" +

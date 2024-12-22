@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.androidx.room.common)
     implementation(libs.androidx.recyclerview)
+    implementation(libs.firebase.messaging)
     testImplementation(libs.junit)
     implementation(libs.play.services.auth)
     implementation(libs.androidx.room.runtime)
