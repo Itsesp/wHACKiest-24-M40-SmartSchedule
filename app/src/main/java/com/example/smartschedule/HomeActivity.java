@@ -118,7 +118,7 @@ public class HomeActivity extends NavigationDrawer {
         String branch = sharedPreferences.getString("branch", null);
         String section = sharedPreferences.getString("section", null);
         String semester = sharedPreferences.getString("semester", null);
-
+        Log.d(TAG, "Name: " + name + ", Branch: " + branch + ", Section: " + section + ", Semester: " + semester);
 
 
         navigationView = findViewById(R.id.navigationView);
@@ -318,11 +318,12 @@ public class HomeActivity extends NavigationDrawer {
             if (task.isSuccessful() && task.getResult() != null) {
                 DocumentSnapshot document = task.getResult();
                 if (document.exists()) {
-                    String name = document.getString("name");
-                    String branch = document.getString("branch");
-                    String section = document.getString("section");
-                    String semester = document.getString("semester");
+                    String name = document.getString("Name");
+                    String branch = document.getString("Branch");
+                    String section = document.getString("Section");
+                    String semester = document.getString("Semester");
                     saveToLocal(name, branch, section, semester);
+                    Log.d(TAG, "Name: " + name + ", Branch: " + branch + ", Section: " + section + ", Semester: " + semester);
 
 
                 } else {

@@ -95,6 +95,7 @@ public class TimeTableFragment extends Fragment {
                     timetableAdapter.updateData(entries);
                     LocalDate currentDate = LocalDate.now();
                     String today = currentDate.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault());
+                    if(today.equals("Sunday"))today="Monday";
                     Log.d(TAG, "Today's day: " + today);
                     filterTimetableByDay(today);
                 });
