@@ -3,6 +3,7 @@ package com.example.smartschedule.fragment;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 
+import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
 
 import android.util.Log;
@@ -29,7 +30,14 @@ public class ProfileFragment extends Fragment {
         String branch = sharedPreferences.getString("branch", null);
         String section = sharedPreferences.getString("section", null);
         String semester = sharedPreferences.getString("semester", null);
+        Toolbar toolbar = (Toolbar) getActivity().findViewById(R.id.toolbar);
 
+
+        if (toolbar != null) {
+            toolbar.setBackgroundColor(getResources().getColor(R.color.background));
+            toolbar.setTitleTextColor(getResources().getColor(R.color.colorPrimary));
+            toolbar.setTitle("Smart Schedule");
+        }
         TextInputEditText edtName = view.findViewById(R.id.edtName);
         TextInputEditText edtBranch = view.findViewById(R.id.edtBranch);
         TextInputEditText edtSection = view.findViewById(R.id.edtSection);

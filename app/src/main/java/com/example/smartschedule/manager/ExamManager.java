@@ -122,4 +122,10 @@ public class ExamManager {
         Type type = new TypeToken<List<Exam>>() {}.getType();
         return json != null ? gson.fromJson(json, type) : new ArrayList<>();
     }
+    public String loadExanName(Context context){
+        SharedPreferences sharedPreferences = context.getSharedPreferences("ExamData", Context.MODE_PRIVATE);
+        String json = sharedPreferences.getString("exams", null);
+        return  json;
+
+    }
 }

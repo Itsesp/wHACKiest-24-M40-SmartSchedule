@@ -1,11 +1,16 @@
 package com.example.smartschedule.fragment;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -15,11 +20,15 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.ak.ColoredDate;
 import com.ak.EventObjects;
 import com.ak.KalendarView;
+import com.example.smartschedule.database.AppDatabase;
+import com.example.smartschedule.database.AppDatabaseProvider;
+import com.example.smartschedule.database.TimetableEntry;
 import com.example.smartschedule.manager.ClubManager;
 import com.example.smartschedule.manager.ExamManager;
 import com.example.smartschedule.manager.HolidayManager;
@@ -31,8 +40,18 @@ import com.example.smartschedule.data.AttendanceItem;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Comparator;
@@ -40,6 +59,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Scanner;
 
 public class HomeFragment extends Fragment {
 
@@ -51,16 +71,30 @@ public class HomeFragment extends Fragment {
     private ClubManager clubManager;
     private RecyclerView recyclerView , attendanceRecycler;
     private AttendanceAdapter adapter;
+    private TextView aiText , aiTextHeader;
+    private List<TimetableEntry> timetableEntries = new ArrayList<>();
+    private AppDatabase database;
+    private String result;
+    StringBuilder attendanceStringBuilder = new StringBuilder(); // StringBuilder to build the string
+
+    private static final String TAG = "ApiActivity";
+    private static final String API_KEY = "AIzaSyBOPwXwKzexs9B46xRMt0FKckASsaH-Ojk";
+    private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + API_KEY;
+    List<AttendanceItem> attendanceList = new ArrayList<>();
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         db = FirebaseFirestore.getInstance();
+        database = AppDatabaseProvider.getDatabase(getContext());
         eventsList = new ArrayList<>();
         mKalendarView = view.findViewById(R.id.kalendar);
         holidayManager = new HolidayManager();
         clubManager = new ClubManager();
         examManager=new ExamManager();
+        aiText=view.findViewById(R.id.aiText);
+        aiTextHeader=view.findViewById(R.id.aiTextHeader);
         recyclerView=view.findViewById(R.id.upcomingView);
         attendanceRecycler=view.findViewById(R.id.attendanceView);
         int numberOfColumns = 3;
@@ -68,9 +102,14 @@ public class HomeFragment extends Fragment {
         attendanceRecycler.setLayoutManager(gridLayoutManager);
         LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false);
         recyclerView.setLayoutManager(layoutManager);
-        //holidayManager.fetchAndUpdateHolidays(requireContext());
-        //examManager.fetchAndUpdateExams(requireContext());
-        //clubManager.fetchAndUpdateClubEvents(requireContext());
+        Toolbar toolbar = (Toolbar) getActivity().findViewById(R.id.toolbar);
+
+        fetchTimetableData();
+        if (toolbar != null) {
+            toolbar.setBackgroundColor(getResources().getColor(R.color.background));
+            toolbar.setTitleTextColor(getResources().getColor(R.color.colorPrimary));
+            toolbar.setTitle("Smart Schedule");
+        }
         checkAndFetchData();
         setEventColors();
         loadAndSortEvents();
@@ -150,6 +189,8 @@ public class HomeFragment extends Fragment {
         } else {
             Toast.makeText(getContext(), "USN not found!", Toast.LENGTH_SHORT).show();
         }
+
+        new APICallTask().execute();
         return view;
     }
 
@@ -289,13 +330,14 @@ public class HomeFragment extends Fragment {
         db.collection("Attendance").document(usn).get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
-                        List<AttendanceItem> attendanceList = new ArrayList<>();
+
                         Map<String, Object> data = documentSnapshot.getData();
 
                         for (Map.Entry<String, Object> entry : data.entrySet()) {
                             String subject = entry.getKey();
                             int percentage = Integer.parseInt(entry.getValue().toString());
                             attendanceList.add(new AttendanceItem(subject, percentage));
+                            attendanceStringBuilder.append(subject).append(": ").append(percentage).append("%\n");
                         }
                         attendanceList.sort(Comparator.comparingInt(AttendanceItem::getPercentage));
 
@@ -347,6 +389,119 @@ public class HomeFragment extends Fragment {
         editor.putLong("lastFetchTimestamp", timestamp); // Store the latest timestamp
         editor.apply();
     }
+    private class APICallTask extends AsyncTask<Void, Void, String> {
 
+        @RequiresApi(api = Build.VERSION_CODES.O)
+        @Override
+        protected String doInBackground(Void... voids) {
+            try {
+                LocalDate today = LocalDate.now();
+
+                // Format the date
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                String formattedDate = today.format(formatter);
+                String text = "You are an AI Assistant in a timetable app. Your work is to give suggestions to attend classes based on attendance, other events like clubs, exams, and holidays. Provide suggestions only for the current day's timetable, not for the entire month. Your response should be direct, formal, and actionable.\n" +
+                        "\n" + "Today's Date: " + formattedDate +
+                        "\nData:  Today's Class Timetable: " + result +
+                        "\nHoliday Data: " + holidayManager.loadHolidayName(getContext()) +
+                        "\nExam Data: " + examManager.loadExanName(getContext()) +
+                        "\nClub Data: " + clubManager.loadClubString(getContext()) +
+                        "\nAttendance data: " + attendanceStringBuilder.toString() +
+                        "\nGive 3 suggestions Based on the data.";
+
+                JSONObject payload = new JSONObject();
+                JSONObject content = new JSONObject();
+                content.put("text", text);
+
+                JSONArray partsArray = new JSONArray();
+                partsArray.put(content);
+
+                JSONObject contentWrapper = new JSONObject();
+                contentWrapper.put("parts", partsArray);
+
+                JSONArray contentsArray = new JSONArray();
+                contentsArray.put(contentWrapper);
+
+                payload.put("contents", contentsArray);
+
+                // Set up the connection
+                URL url = new URL(API_URL);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/json");
+                connection.setDoOutput(true);
+
+                // Send the request
+                try (OutputStream os = connection.getOutputStream()) {
+                    os.write(payload.toString().getBytes());
+                    os.flush();
+                }
+
+                // Get the response
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    try (Scanner scanner = new Scanner(connection.getInputStream())) {
+                        scanner.useDelimiter("\\A");
+                        return scanner.hasNext() ? scanner.next() : "";
+                    }
+                } else {
+                    return "Error: " + responseCode;
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Exception during API call", e);
+                return "Exception: " + e.getMessage();
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            // Extract only the 'text' content from the API response
+            try {
+                JSONObject responseJson = new JSONObject(result);
+                JSONArray candidates = responseJson.getJSONArray("candidates");
+                JSONObject candidate = candidates.getJSONObject(0);
+                JSONObject content = candidate.getJSONObject("content");
+                JSONArray parts = content.getJSONArray("parts");
+                JSONObject part = parts.getJSONObject(0);
+                String text = part.getString("text");
+
+                aiTextHeader.setOnClickListener(v -> showFullTextDialog(text));
+                aiText.setText(text);
+                Log.d(TAG, "API Response Text: " + text);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error parsing API response", e);
+                aiText.setText("Error parsing response.");
+            }
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void fetchTimetableData() {
+        new Thread(() -> {
+            try {
+                List<String> timetableStrings = database.timetableDao().getFormattedTimetableForDay("Monday");
+                if (timetableStrings != null && !timetableStrings.isEmpty()) {
+
+                    result = String.join(" | ", timetableStrings);
+                    Log.d("ApiActivity", attendanceList.toString());
+
+                    Log.d("ApiActivity", result);
+                } else {
+                    Log.d("ApiActivity", "No data found for Monday.");
+                }
+            } catch (Exception e) {
+                Log.e("ApiActivity", "Error fetching timetable data", e);
+            }
+        }).start();
+    }
+    private void showFullTextDialog(String text) {
+
+        new AlertDialog.Builder(getContext())
+                .setTitle("AI Suggestion")
+                .setMessage(text)
+                .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                .show();
+    }
 
 }

@@ -100,4 +100,11 @@ public class HolidayManager {
         Type type = new TypeToken<List<Holiday>>() {}.getType();
         return json != null ? gson.fromJson(json, type) : new ArrayList<>();
     }
+    public String loadHolidayName(Context context){
+        SharedPreferences sharedPreferences = context.getSharedPreferences("HolidayData", Context.MODE_PRIVATE);
+        String json = sharedPreferences.getString("holidays", null);
+        return json;
+
+    }
+
 }

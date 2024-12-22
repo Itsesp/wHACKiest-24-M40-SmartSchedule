@@ -4,6 +4,7 @@ import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -52,7 +53,13 @@ public class TimeTableFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         timetableAdapter = new TimetableAdapter(requireContext(),timetableEntries);
         recyclerView.setAdapter(timetableAdapter);
+        Toolbar toolbar = (Toolbar) getActivity().findViewById(R.id.toolbar);
 
+        if (toolbar != null) {
+            toolbar.setBackgroundColor(getResources().getColor(R.color.background));
+            toolbar.setTitleTextColor(getResources().getColor(R.color.colorPrimary));
+            toolbar.setTitle("Time Table");
+        }
         setupDayButtons(rootView);
         fetchTimetableData();
 

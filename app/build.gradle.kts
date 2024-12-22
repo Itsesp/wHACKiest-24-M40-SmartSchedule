@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.circularimageview)
     implementation(libs.inflationx.viewpump)
     implementation(platform(libs.firebase.bom))
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation(libs.gson)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation("com.github.bumptech.glide:glide:4.15.1")

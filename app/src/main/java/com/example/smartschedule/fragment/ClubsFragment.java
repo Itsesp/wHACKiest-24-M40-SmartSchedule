@@ -7,6 +7,7 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -46,7 +47,13 @@ public class ClubsFragment extends Fragment implements ClubAdapter.OnUpcomingEve
         View rootView = inflater.inflate(R.layout.fragment_clubs, container, false);
         recyclerView = rootView.findViewById(R.id.clubRecyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        Toolbar toolbar = (Toolbar) getActivity().findViewById(R.id.toolbar);
 
+        if (toolbar != null) {
+            toolbar.setBackgroundColor(getResources().getColor(R.color.background));
+            toolbar.setTitleTextColor(getResources().getColor(R.color.colorPrimary));
+            toolbar.setTitle("Clubs");
+        }
         clubAdapter = new ClubAdapter(clubList, this);
         recyclerView.setAdapter(clubAdapter);
 

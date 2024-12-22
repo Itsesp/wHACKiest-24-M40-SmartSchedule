@@ -124,4 +124,10 @@ public class ClubManager {
         Type type = new TypeToken<List<ClubEvent>>() {}.getType();
         return json != null ? gson.fromJson(json, type) : new ArrayList<>();
     }
+    public String loadClubString(Context context){
+        SharedPreferences sharedPreferences = context.getSharedPreferences("ClubEventData", Context.MODE_PRIVATE);
+        String json = sharedPreferences.getString("club_events", null);
+        return  json;
+
+    }
 }
