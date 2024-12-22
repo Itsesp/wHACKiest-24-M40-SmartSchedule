@@ -6,24 +6,29 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:scrollbars="none"
+    android:background="@color/bgMain"
+    android:backgroundTint="@color/bgMain"
     tools:context=".fragment.HomeFragment">
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:background="@color/bgMain"
+        android:backgroundTint="@color/bgMain">
         <com.ak.KalendarView
             android:id="@+id/kalendar"
             android:layout_width="wrap_content"
             android:layout_height="350dp"
             android:layout_marginTop="10dp"
             android:layout_marginHorizontal="10dp"
-            app:calendarBackground="#FFFFFF"
+            app:calendarBackground="@color/background"
+            app:dateColor="@color/primaryText"
             app:dateTextStyle="@style/weekText"
             app:monthTextStyle="@style/weekText"
             app:nextIcon="@drawable/calenderview_front"
             app:prevIcon="@drawable/calendarview_back"
             app:selectedIndicator="@drawable/custom_select_date"
-            app:todayDateColor="#027DB5"
+            app:todayDateColor="@color/colorPrimary"
             app:todayIndicator="@drawable/custom_today"
             app:weekTextStyle="@style/weekText" />
         <androidx.cardview.widget.CardView

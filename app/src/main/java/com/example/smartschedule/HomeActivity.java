@@ -4,11 +4,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.StrictMode;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -19,6 +17,7 @@ import android.widget.Toast;
 
 import io.github.inflationx.viewpump.ViewPumpContextWrapper;
 import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.fragment.app.Fragment;
@@ -34,28 +33,18 @@ import com.example.smartschedule.fragment.HomeFragment;
 import com.example.smartschedule.fragment.ProfileFragment;
 import com.example.smartschedule.fragment.TimeTableFragment;
 import com.google.android.material.navigation.NavigationView;
-import com.google.firebase.Timestamp;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.mikhaellopez.circularimageview.CircularImageView;
-
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
-import android.app.AlarmManager;
 
 public class HomeActivity extends NavigationDrawer {
     private NavigationView navigationView;
@@ -124,22 +113,46 @@ public class HomeActivity extends NavigationDrawer {
         };
         drawer.addDrawerListener(toggle);
         toggle.syncState();
+        SharedPreferences sharedPreferences = getSharedPreferences("UserPreferences", MODE_PRIVATE);
+        String name = sharedPreferences.getString("name", null);
+        String branch = sharedPreferences.getString("branch", null);
+        String section = sharedPreferences.getString("section", null);
+        String semester = sharedPreferences.getString("semester", null);
+
+
 
         navigationView = findViewById(R.id.navigationView);
         navigationView.setNavigationItemSelectedListener(this);
 
         View hView = navigationView.getHeaderView(0);
-
+        SwitchMaterial switchBtn = hView.findViewById(R.id.switchBtn);
         txtUserName = hView.findViewById(R.id.txtUserName);
         imgUser = hView.findViewById(R.id.imgUser);
         llNav = hView.findViewById(R.id.llNav);
+        if (name != null && branch != null && section != null && semester != null) {
+            txtUserName.setText(name);
+        } else {
 
+            fetchDetailsFromFirestore();
+            String name2 = sharedPreferences.getString("name", null);
+            txtUserName.setText(name2);
+        }
 
         llNav.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 drawer.closeDrawer(GravityCompat.START);
                 loadFragment(new ProfileFragment());
+            }
+        });
+        int currentNightMode = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        switchBtn.setChecked(currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES);
+
+        switchBtn.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES); // Enable dark mode
+            } else {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO); // Enable light mode
             }
         });
 
@@ -280,73 +293,54 @@ public class HomeActivity extends NavigationDrawer {
                     }
                 });
             } else {
-                SharedPreferences preferences = getSharedPreferences("UserPreferences", Context.MODE_PRIVATE);
-
-                long lastFetchTimestamp = preferences.getLong("lastFetchTimeTable", 0);
-
-                FirebaseFirestore db = FirebaseFirestore.getInstance();
-                db.collection("timestamp")
-                        .document("timetable")
-                        .get()
-                        .addOnSuccessListener(documentSnapshot -> {
-                            if (documentSnapshot.exists()) {
-
-                                Timestamp firestoreTimestamp = documentSnapshot.getTimestamp("timestamp");
-                                if (firestoreTimestamp != null) {
-                                    long timestampInMillis = firestoreTimestamp.getSeconds() * 1000;  // Convert to milliseconds
-                                    if (timestampInMillis > lastFetchTimestamp) {
-                                        DatabaseReference reference = FirebaseDatabase.getInstance().getReference("J");
-
-                                        reference.addListenerForSingleValueEvent(new ValueEventListener() {
-                                            @Override
-                                            public void onDataChange(DataSnapshot dataSnapshot) {
-
-                                                for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
-                                                    String day = daySnapshot.getKey();
-                                                    for (DataSnapshot subjectSnapshot : daySnapshot.getChildren()) {
-                                                        Log.d(TAG, "Snapshot: " + subjectSnapshot.toString());
-                                                        String subjectName = subjectSnapshot.getKey();
-                                                        String startTime = subjectSnapshot.child("start").getValue(String.class);
-                                                        String endTime = subjectSnapshot.child("end").getValue(String.class);
-
-                                                        TimetableEntry timetableEntry = new TimetableEntry(day, subjectName, startTime, endTime);
-                                                        insertTimetableEntry(timetableEntry);
-                                                    }
-                                                }
-                                            }
-
-                                            @Override
-                                            public void onCancelled(DatabaseError databaseError) {
-                                                Log.e(TAG, "Failed to read timetable data", databaseError.toException());
-                                            }
-                                        });
-                                        updateLastFetchTimestamp(timestampInMillis);
-                                    } else {
-
-                                        Log.d(TAG, "Data is up to date.");
-                                    }
-                                }
-
-                            }
-                        })
-                        .addOnFailureListener(e -> {
-                            Log.e("HomeFragment", "Error checking timestamp", e);
-
-                        });
                 Log.d(TAG, "Timetable already exists in Room Database");
             }
         }).start();
-    }
-    private void updateLastFetchTimestamp(long timestamp) {
-        SharedPreferences preferences = getSharedPreferences("UserPreferences", Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putLong("lastFetchTimeTable", timestamp); // Store the latest timestamp
-        editor.apply();
     }
     private void insertTimetableEntry(TimetableEntry entry) {
         new Thread(() -> {
             database.timetableDao().insert(entry);
         }).start();
+    }
+    private void fetchDetailsFromFirestore() {
+        SharedPreferences sharedPreferences = getSharedPreferences("UserPreferences", MODE_PRIVATE);
+        String usn = sharedPreferences.getString("usn", null);
+
+        if (usn == null) {
+            Toast.makeText(this, "USN not found in local storage!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+        DocumentReference docRef = firestore.collection("usn").document(usn);
+
+        docRef.get().addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null) {
+                DocumentSnapshot document = task.getResult();
+                if (document.exists()) {
+                    String name = document.getString("name");
+                    String branch = document.getString("branch");
+                    String section = document.getString("section");
+                    String semester = document.getString("semester");
+                    saveToLocal(name, branch, section, semester);
+
+
+                } else {
+                    Toast.makeText(this, "Document not found in Firestore!", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "Error fetching data: " + task.getException(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    private void saveToLocal(String name, String branch, String section, String semester) {
+        SharedPreferences sharedPreferences = getSharedPreferences("UserPreferences", MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("name", name);
+        editor.putString("branch", branch);
+        editor.putString("section", section);
+        editor.putString("semester", semester);
+        editor.apply();
     }
 
 }

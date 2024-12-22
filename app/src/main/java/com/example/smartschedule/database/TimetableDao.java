@@ -1,6 +1,7 @@
 package com.example.smartschedule.database;
 
 import androidx.room.Dao;
+import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.Query;
 
@@ -17,6 +18,9 @@ public interface TimetableDao {
 
     @Query("SELECT * FROM timetable ORDER BY day, startTime")
     List<TimetableEntry> getAllTimetable();
-
+    @Delete
+    void delete(TimetableEntry entry);
+    @Query("DELETE FROM timetable")
+    void deleteAll();
 }
 

@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:layout_gravity="center"
     android:layout_margin="10dp"
-    app:cardBackgroundColor="@color/white"
+    app:cardBackgroundColor="@color/background"
     app:cardCornerRadius="5dp"
     app:cardElevation="0sp"
     app:cardPreventCornerOverlap="true"
@@ -33,7 +33,7 @@
             android:layout_gravity="center"
             android:layout_marginTop="10dp"
             android:text="Ok"
-            android:textColor="@color/white"
+            android:textColor="@color/primaryText"
             app:backgroundTint="@color/colorPrimary"
             app:cornerRadius="5dp"
             app:rippleColor="@color/colorPrimaryRipple" />

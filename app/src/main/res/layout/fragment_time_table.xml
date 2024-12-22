@@ -3,17 +3,23 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".fragment.TimeTableFragment">
+    tools:context=".fragment.TimeTableFragment"
+    android:backgroundTint="@color/bgMain"
+    android:background="@color/bgMain">
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:backgroundTint="@color/bgMain"
+        android:background="@color/bgMain">
 
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             tools:ignore="SpeakableTextPresentCheck"
-            android:scrollbars="none">
+            android:scrollbars="none"
+            android:backgroundTint="@color/bgMain"
+            android:background="@color/bgMain">
 
             <LinearLayout
                 android:id="@+id/daysButtonLayout"

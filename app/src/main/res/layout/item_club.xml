@@ -31,7 +31,7 @@
                 android:layout_height="wrap_content"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:textColor="@color/black"
+                android:textColor="@color/primaryText"
                 android:layout_gravity="center"/>
         </FrameLayout>
 
@@ -62,6 +62,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="@color/white"
+                android:background="@color/colorPrimary"
                 android:layout_gravity="center"
                 android:text="Upcoming Event"/>
         </androidx.cardview.widget.CardView>

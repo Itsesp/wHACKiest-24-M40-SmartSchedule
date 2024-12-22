@@ -1,4 +1,4 @@
-package com.example.smartschedule;
+package com.example.smartschedule.manager;
 
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;

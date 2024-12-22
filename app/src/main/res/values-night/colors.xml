@@ -10,11 +10,13 @@
     <color name="colorPrimary">#1891C8</color>
     <color name="colorPrimaryDark">#1891C8</color>
     <color name="colorAccent">#ffc849</color>
-    <color name="primaryText">#000000</color>
-    <color name="background">#FFFFFF</color>
-    <color name="bgMain">#FAFAFA</color>
+    <color name="bgMain">#1e1e1e</color>
+
     <color name="colorPrimaryTrans">#2032a19f</color>
     <color name="colorPrimaryRipple">#4232a19f</color>
+    <color name="primaryText">#FFFFFF</color>
+    <color name="background">#000000</color>
+
     <color name="secondaryText">#616161</color>
     <color name="secondaryText1">#d9d9d9</color>
     <color name="appBg">#fafafa</color>
